@@ -1,0 +1,189 @@
+/*
+ * LapisCV-compatible base layout, derived from BingyanStudio/LapisCV v2.0.1.
+ * Copyright (c) 2024 YiNN. Licensed under the MIT License.
+ */
+
+* { box-sizing: border-box; }
+
+@page {
+  size: A4;
+  margin: 13mm 15mm;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--background-primary);
+}
+
+body {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+#write,
+.resume-page {
+  width: 180mm;
+  margin: 0 auto;
+}
+
+p, li,
+.resume-page {
+  font-family: var(--text-font);
+  font-size: var(--text-size);
+  line-height: var(--line-height);
+  color: var(--text-normal);
+}
+
+h1, h2, h3 {
+  font-family: var(--title-font);
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  color: var(--h1-color);
+  font-size: var(--h1-size);
+  line-height: 1.45;
+  text-align: center;
+}
+
+h2 {
+  margin: 2.6mm 0 1.8mm;
+  padding: 1mm 0;
+  color: var(--h2-color);
+  font-size: var(--h2-size);
+  line-height: 1;
+  border-bottom: 1px solid var(--section-rule);
+  break-after: avoid;
+}
+
+h3 {
+  margin: 0;
+  color: var(--h3-color);
+  font-size: var(--h3-size);
+  line-height: 1.8;
+}
+
+blockquote {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+blockquote p {
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  font-size: var(--blockquote-size);
+  line-height: 1.5;
+}
+
+blockquote .resume-headline {
+  color: var(--color-accent);
+  font-size: var(--headline-size);
+  font-weight: 700;
+}
+
+blockquote .resume-summary {
+  color: var(--text-muted);
+}
+
+.resume-header {
+  text-align: center;
+}
+
+.target-headline {
+  color: var(--color-accent);
+  font-size: var(--headline-size);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.contact-line,
+.profile-summary {
+  font-size: var(--blockquote-size);
+  line-height: 1.5;
+}
+
+.profile-summary {
+  color: var(--text-muted);
+}
+
+.contact-item {
+  color: var(--text-muted);
+}
+
+.entry-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4mm;
+  break-after: avoid;
+}
+
+.entry-heading .entry-title { flex: 1 1 auto; }
+
+.entry-meta {
+  flex: 0 1 auto;
+  color: var(--text-muted);
+  font-size: var(--meta-size);
+  text-align: right;
+}
+
+.entry-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4mm;
+  break-after: avoid;
+}
+
+.entry-title h3 { flex: 1 1 auto; }
+
+.entry-title p {
+  flex: 0 1 auto;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--meta-size);
+  text-align: right;
+}
+
+.entry-summary {
+  margin: 0 0 .4mm;
+  color: var(--text-muted);
+  font-size: var(--meta-size);
+  font-style: italic;
+}
+
+ul {
+  margin: 0;
+  padding-inline-start: 3mm;
+  padding-inline-end: 1mm;
+  list-style-type: '\2022';
+}
+
+.resume-bullets { margin: 0; }
+
+li {
+  margin: 0 0 .2mm;
+  padding-left: 1.5mm;
+}
+
+li:last-child { margin-bottom: 0; }
+li::marker { color: var(--color-accent); font-weight: 700; }
+
+.emphasis-label { color: var(--color-accent); font-weight: 700; }
+.emphasis-metric,
+.emphasis-result,
+.emphasis-keyword { color: var(--text-strong); font-weight: 700; }
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+@media print {
+  h1, h2, h3, .entry-title, .entry-heading { break-after: avoid; }
+  .resume-page { width: auto; margin: 0; }
+}

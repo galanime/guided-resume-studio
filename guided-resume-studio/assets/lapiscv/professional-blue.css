@@ -1,0 +1,23 @@
+/* Professional-blue theme adapted from the user's existing one-page resume system. */
+:root {
+  --text-size: 9.1pt;
+  --line-height: 1.44;
+  --h1-size: 17.5pt;
+  --headline-size: 10.2pt;
+  --h2-size: 11.6pt;
+  --h3-size: 9.8pt;
+  --blockquote-size: 8.8pt;
+  --meta-size: 8.5pt;
+  --text-font: "Noto Sans CJK SC", "Source Han Sans CN", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --title-font: "Noto Sans CJK SC", "Source Han Sans CN", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --color-accent: #1a56db;
+  --h1-color: #1e293b;
+  --h2-color: #1a56db;
+  --h3-color: #1e293b;
+  --text-normal: #334155;
+  --text-strong: #1e293b;
+  --text-muted: #64748b;
+  --section-rule: #a9c1f1;
+  --border-color: #e2e8f0;
+  --background-primary: #ffffff;
+}

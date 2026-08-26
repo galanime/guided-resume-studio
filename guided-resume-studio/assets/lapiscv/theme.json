@@ -1,0 +1,14 @@
+{
+  "theme_id": "professional-blue",
+  "template_id": "lapiscv-professional-blue-one-page",
+  "accent": "#1a56db",
+  "heading": "#1e293b",
+  "body": "#334155",
+  "muted": "#64748b",
+  "rule": "#e2e8f0",
+  "background": "#ffffff",
+  "font_cjk": "Noto Sans CJK SC",
+  "font_fallbacks": ["Source Han Sans CN", "PingFang SC", "Microsoft YaHei", "sans-serif"],
+  "page": {"size": "A4", "margin_top_mm": 13, "margin_bottom_mm": 13, "margin_left_mm": 15, "margin_right_mm": 15},
+  "typography": {"text_size_pt": 9.1, "line_height": 1.44, "h1_size_pt": 17.5, "h2_size_pt": 11.6, "h3_size_pt": 9.8}
+}

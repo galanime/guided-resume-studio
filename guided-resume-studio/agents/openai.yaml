@@ -1,0 +1,7 @@
+interface:
+  display_name: "Guided Resume Studio"
+  short_description: "引导建库、调研岗位并生成可溯源单页简历"
+  brand_color: "#1A56DB"
+  default_prompt: "Use $guided-resume-studio to build or import my career knowledge base, research one target role, and generate an approved one-page LapisCV PDF resume."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openai.local/guided-resume-studio/resume.schema.json",
+  "title": "Guided Resume Studio grounded resume",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "template_id", "locale", "header", "sections"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "template_id": {"const": "lapiscv-professional-blue-one-page"},
+    "locale": {"enum": ["zh-CN", "en"]},
+    "document_title": {"type": "string"},
+    "output_basename": {"type": "string", "pattern": "^[^/\\\\]+$"},
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_name", "headline", "contacts", "summary"],
+      "properties": {
+        "display_name": {"type": "string", "minLength": 1},
+        "headline": {"type": "string", "minLength": 1},
+        "contacts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "summary": {"type": "string", "minLength": 1}
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/section"}
+    }
+  },
+  "$defs": {
+    "emphasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "kind"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["label", "metric", "result", "keyword"]}
+      }
+    },
+    "bullet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "fact_ids"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "fact_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "keyword_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "rewrite_reason": {"type": "string"},
+        "emphasis": {"type": "array", "maxItems": 3, "items": {"$ref": "#/$defs/emphasis"}}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "bullets"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "meta": {"type": "string"},
+        "summary": {"type": "string"},
+        "bullets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/bullet"}}
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section_id", "title"],
+      "properties": {
+        "section_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"},
+        "title": {"type": "string", "minLength": 1},
+        "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}},
+        "bullets": {"type": "array", "items": {"$ref": "#/$defs/bullet"}}
+      },
+      "anyOf": [
+        {"required": ["entries"]},
+        {"required": ["bullets"]}
+      ]
+    }
+  }
+}

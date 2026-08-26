@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openai.local/guided-resume-studio/profile.schema.json",
+  "title": "Guided Resume Studio candidate profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_id", "identity", "preferences", "facts"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "candidate_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_name", "contacts", "career_stage", "locale"],
+      "properties": {
+        "display_name": {"type": "string", "minLength": 1},
+        "contacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "value", "public"],
+            "properties": {
+              "label": {"type": "string", "minLength": 1},
+              "value": {"type": "string", "minLength": 1},
+              "public": {"type": "boolean"}
+            }
+          }
+        },
+        "career_stage": {"type": "string", "minLength": 1},
+        "locale": {"enum": ["zh-CN", "en"]}
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_template", "one_page", "do_not_disclose"],
+      "properties": {
+        "default_template": {"const": "lapiscv-professional-blue-one-page"},
+        "one_page": {"const": true},
+        "do_not_disclose": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "facts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/fact"}
+    }
+  },
+  "$defs": {
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "path_or_url": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "note": {"type": "string"}
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fact_id", "category", "description", "status", "sources"],
+      "properties": {
+        "fact_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$"},
+        "category": {
+          "enum": ["education", "employment", "internship", "project", "research", "coursework", "campus", "volunteer", "freelance", "skill", "language", "certification", "award", "publication", "other"]
+        },
+        "title": {"type": "string"},
+        "organization": {"type": "string"},
+        "role": {"type": "string"},
+        "date_start": {"type": "string"},
+        "date_end": {"type": "string"},
+        "description": {"type": "string", "minLength": 1},
+        "metrics": {"type": "array", "items": {"type": "string"}},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "status": {"enum": ["user_verified", "source_supported", "unverified", "conflicted", "do_not_disclose"]},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/sourceRef"}}
+      }
+    }
+  }
+}
