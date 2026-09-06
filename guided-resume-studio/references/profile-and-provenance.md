@@ -45,6 +45,25 @@ resume-workspace/<candidate-id>/
   outputs/<job-id>/<timestamp>/
 ```
 
+## Selection ledger and pool retention
+
+The knowledge base is the candidate's permanent asset; each resume is only a view over it. Tell the user this explicitly at intake and again at final delivery: confirmed material that is not used in the current resume stays in the knowledge base at full `user_verified` status and remains available for future target jobs.
+
+For every job run, write `jobs/<job-id>/selection.json`:
+
+```json
+{
+  "schema_version": "1.0",
+  "job_id": "<job-id>",
+  "used_fact_ids": ["fact-001"],
+  "unused_fact_ids": [
+    {"fact_id": "fact-009", "reason": "ranked below the cut line for this JD"}
+  ]
+}
+```
+
+Never delete or downgrade a fact because it was not selected. Never move unused material into the resume to fill space without re-checking it against the decision rules in [岗位调研与改写](research-and-rewrite.md).
+
 ## Claim ledger
 
 Every final bullet in `resume.json` carries `fact_ids` and optional `keyword_ids`. `change-map.md` must make the chain readable:
@@ -55,4 +74,4 @@ Unsupported keywords remain gaps. Do not create a fact record merely to justify 
 
 ## Run snapshot
 
-After PDF and QA pass, call `scripts/snapshot_run.py --profile <profile.json> --ats-report <ats-map.json> ...`. The provenance directory must include the exact verified profile snapshot, ATS map, renderer, template, CSS, theme, MIT license, approval, manifest and executable rebuild command. Treat provenance as private because it contains candidate data. Hash every delivered and rebuild-critical file. Do not claim deterministic rebuild across different Chromium versions; record the browser path and version reported by the renderer.
+After PDF and QA pass, call `scripts/snapshot_run.py --profile <profile.json> --ats-report <ats-map.json> ...`. The provenance directory must include the exact verified profile snapshot, ATS map, renderer, template, CSS, theme, MIT license, approval, manifest and executable rebuild command. The snapshot must verify that the named PDF and canonical `resume.pdf` hashes match, execute the rebuild command, and structurally check the rebuilt A4 PDF and approved text. Treat provenance as private because it contains candidate data. Hash every delivered and rebuild-critical file. Do not claim deterministic rebuild across different Chromium versions; record the browser path and version reported by the renderer.

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "strategies": [
+    {"id": "ai-product-builder", "label": "AI product / product builder", "signals": ["用户场景", "需求拆解", "0-1", "Prompt", "Agent", "工作流", "人机协同", "质量门禁"], "order": ["场景或问题", "判断/取舍", "工作流或方案", "验证与边界", "结果"]},
+    {"id": "product-operations-growth", "label": "Product operations / growth", "signals": ["用户增长", "内容", "转化", "留存", "策略", "数据复盘", "分层"], "order": ["用户或业务目标", "分层/策略判断", "执行动作", "指标或反馈", "复盘"]},
+    {"id": "engineering-ai-application", "label": "Engineering / AI application engineering", "signals": ["系统设计", "API", "Python", "React", "FastAPI", "测试", "稳定性", "部署"], "order": ["工程问题", "关键机制", "范围/质量约束", "测试或运行证据", "结果"]},
+    {"id": "research-algorithm-science", "label": "Research / algorithm / science", "signals": ["研究问题", "实验", "方法", "模型", "数据集", "指标", "复现"], "order": ["问题", "方法/实验设计", "观察或贡献", "验证与限制"]},
+    {"id": "legal-compliance", "label": "Legal / compliance", "signals": ["法律检索", "合同审查", "合规", "争议解决", "尽调", "法律意见", "法规政策"], "order": ["事项/法域与问题", "风险或争点判断", "检索/审查/论证", "文书或程序结果"]},
+    {"id": "finance-consulting-analysis", "label": "Finance / consulting / business analysis", "signals": ["财务分析", "建模", "预算", "审计", "尽调", "商业分析", "内控", "预测"], "order": ["业务问题", "数据/模型或访谈方法", "建议/控制措施", "决策采用或交付证据"]},
+    {"id": "education-training", "label": "Education / training", "signals": ["课程设计", "教学", "教研", "教案", "学习目标", "课堂管理", "评估", "培训"], "order": ["学习对象与目标", "教学设计/干预", "课堂或交付", "学习反馈与范围"]},
+    {"id": "healthcare-public-service", "label": "Healthcare / public service", "signals": ["患者", "居民服务", "临床支持", "公共项目", "政策执行", "隐私", "安全", "个案管理"], "order": ["服务对象与需求", "协议/流程/协调动作", "安全或可及性证据", "交接与限制"]},
+    {"id": "design-content-communications", "label": "Design / content / communications", "signals": ["视觉设计", "交互", "品牌", "编辑", "文案", "内容策划", "作品集", "传播"], "order": ["受众与传播目标", "概念/创作决策", "产出物与迭代", "发布、审阅或反馈"]},
+    {"id": "general-cross-functional", "label": "General / cross-functional", "signals": ["项目协调", "沟通", "文档", "流程", "客户", "交付"], "order": ["目标与约束", "协作动作", "交付物", "可核验结果"]}
+  ]
+}

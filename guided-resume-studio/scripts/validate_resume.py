@@ -26,6 +26,23 @@ def cjk_present(value: str) -> bool:
     return bool(re.search(r"[\u3400-\u9fff]", value))
 
 
+def visual_note_complete(note: str, locale: str) -> tuple[bool, list[str]]:
+    groups = {
+        "clipping": ("裁切", "clipping"),
+        "overlap": ("重叠", "overlap"),
+        "glyphs": ("缺字", "missing glyph"),
+        "dates": ("日期", "date"),
+        "orphan headings": ("孤立标题", "orphan heading"),
+        "natural wrapping": ("自然断行", "natural wrap"),
+        "header": ("页眉", "header"),
+        "indentation": ("缩进", "indent"),
+        "whitespace": ("留白", "whitespace"),
+    }
+    lowered = note.lower()
+    missing = [label for label, terms in groups.items() if not any(term.lower() in lowered for term in terms)]
+    return not missing, missing
+
+
 def expected_texts(resume: dict[str, Any]) -> list[str]:
     values = [resume["header"]["display_name"], resume["header"]["headline"]]
     values.extend(resume["header"].get("contacts", []))
@@ -141,6 +158,36 @@ def main() -> int:
     elif missing:
         errors.append(f"PDF is missing {len(missing)} approved text fragment(s)")
 
+    contacts = resume.get("header", {}).get("contacts", [])
+    separator_expected = max(0, len(contacts) - 1)
+    separator_actual = extracted.count("｜")
+    expected_contact_line = "｜".join(contacts)
+    separator_ok = (
+        separator_actual >= separator_expected
+        and (not expected_contact_line or squash_whitespace(expected_contact_line) in whitespace_free_extracted)
+    )
+    checks.append({
+        "id": "contact_separator_extractable",
+        "passed": separator_ok,
+        "expected_minimum": separator_expected,
+        "actual": separator_actual,
+        "contact_line": expected_contact_line,
+    })
+    if not separator_ok:
+        errors.append("PDF contact line is missing one or more extractable ｜ separators")
+
+    build_path = args.pdf.resolve().parent / "build-report.json"
+    theme_consistency = None
+    if build_path.is_file():
+        try:
+            theme_consistency = json.loads(build_path.read_text(encoding="utf-8")).get("theme_consistency")
+        except (OSError, json.JSONDecodeError):
+            theme_consistency = None
+    theme_ok = isinstance(theme_consistency, dict) and theme_consistency.get("passed") is True
+    checks.append({"id": "theme_css_consistency", "passed": theme_ok, "details": theme_consistency})
+    if not theme_ok:
+        errors.append("build-report.json does not prove theme.json and CSS configuration consistency")
+
     fonts: set[str] = set()
     for page in reader.pages:
         walk_font_names(page.get("/Resources"), fonts, set())
@@ -185,16 +232,24 @@ def main() -> int:
 
     structural_passed = not errors
     visual_status = "approved" if args.visual_approved else "pending"
-    if args.visual_approved and not args.visual_note.strip():
+    note = args.visual_note.strip()
+    note_complete, missing_note_topics = visual_note_complete(note, str(resume.get("locale", "")))
+    if args.visual_approved and not note:
         errors.append("--visual-note is required when --visual-approved is set")
+    elif args.visual_approved and not note_complete:
+        errors.append("--visual-note is missing whole-page review topics: " + ", ".join(missing_note_topics))
     checks.append({
         "id": "visual_inspection",
-        "passed": args.visual_approved and bool(args.visual_note.strip()),
+        "passed": args.visual_approved and bool(note) and note_complete,
         "status": visual_status,
-        "note": args.visual_note.strip(),
-        "required_checks": ["no clipping", "no overlap", "no missing glyphs", "no abnormal wrapping", "correct font", "balanced emphasis"],
+        "note": note,
+        "missing_note_topics": missing_note_topics if args.visual_approved else [],
+        "required_checks": [
+            "no clipping", "no overlap", "no missing glyphs", "no date collision", "no orphan heading",
+            "natural wrapping confirmed", "consistent header", "consistent indentation", "balanced whitespace",
+        ],
     })
-    passed = structural_passed and args.visual_approved and bool(args.visual_note.strip())
+    passed = structural_passed and args.visual_approved and bool(note) and note_complete
     report = {
         "schema_version": "1.0",
         "passed": passed,

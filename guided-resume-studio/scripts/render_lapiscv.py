@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import html
 import json
+import math
 import os
 import re
 import shutil
@@ -22,6 +23,9 @@ from typing import Any
 TEMPLATE_ID = "lapiscv-professional-blue-one-page"
 SAFE_BASENAME = re.compile(r"^[^/\\]+$")
 EMPHASIS_KINDS = {"label", "metric", "result", "keyword"}
+MM_PER_PT = 25.4 / 72.0
+WIDE_CHAR_RE = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef\u2e80-\u2eff]")
+FIT_TOLERANCE = 0.08
 
 
 class RenderError(ValueError):
@@ -235,6 +239,170 @@ def emphasize_markdown(text_value: str, emphasis: list[dict[str, str]]) -> str:
     return "".join(result)
 
 
+def render_contact_html(contacts: list[str]) -> str:
+    rendered: list[str] = []
+    for index, contact in enumerate(contacts):
+        escaped = html.escape(contact)
+        if contact.startswith("作品集："):
+            label, url = contact.split("：", 1)
+            escaped = (
+                '<span class="portfolio-label">'
+                + html.escape(label + "：")
+                + "</span>"
+                + html.escape(url)
+            )
+        rendered.append(f'<span class="contact-value contact-value-{index}">{escaped}</span>')
+    return '<span class="contact-separator"> ｜ </span>'.join(rendered)
+
+
+def css_number(css: str, variable: str, unit: str = "") -> float:
+    match = re.search(rf"--{re.escape(variable)}\s*:\s*([0-9]+(?:\.[0-9]+)?){re.escape(unit)}\s*;", css)
+    if not match:
+        raise RenderError(f"theme CSS is missing --{variable} with unit {unit!r}")
+    return float(match.group(1))
+
+
+def validate_theme_consistency(main_css: str, theme_css: str, theme: dict[str, Any]) -> dict[str, Any]:
+    page = theme.get("page")
+    typography = theme.get("typography")
+    if not isinstance(page, dict) or not isinstance(typography, dict):
+        raise RenderError("theme.json must contain page and typography objects")
+    margin = re.search(r"@page\s*\{[^}]*margin\s*:\s*([0-9.]+)mm\s+([0-9.]+)mm\s*;", main_css, re.S)
+    if not margin:
+        raise RenderError("main.css must declare @page margin as '<vertical>mm <horizontal>mm'")
+    actual = {
+        "margin_top_mm": float(margin.group(1)),
+        "margin_bottom_mm": float(margin.group(1)),
+        "margin_left_mm": float(margin.group(2)),
+        "margin_right_mm": float(margin.group(2)),
+        "text_size_pt": css_number(theme_css, "text-size", "pt"),
+        "line_height": css_number(theme_css, "line-height"),
+        "h1_size_pt": css_number(theme_css, "h1-size", "pt"),
+        "h2_size_pt": css_number(theme_css, "h2-size", "pt"),
+        "h3_size_pt": css_number(theme_css, "h3-size", "pt"),
+    }
+    expected = {
+        "margin_top_mm": page.get("margin_top_mm"),
+        "margin_bottom_mm": page.get("margin_bottom_mm"),
+        "margin_left_mm": page.get("margin_left_mm"),
+        "margin_right_mm": page.get("margin_right_mm"),
+        "text_size_pt": typography.get("text_size_pt"),
+        "line_height": typography.get("line_height"),
+        "h1_size_pt": typography.get("h1_size_pt"),
+        "h2_size_pt": typography.get("h2_size_pt"),
+        "h3_size_pt": typography.get("h3_size_pt"),
+    }
+    mismatches = [key for key, value in actual.items() if expected.get(key) is None or abs(value - float(expected[key])) > 0.001]
+    if mismatches:
+        detail = ", ".join(f"{key}: css={actual[key]} theme={expected.get(key)}" for key in mismatches)
+        raise RenderError(f"theme.json and CSS configuration differ: {detail}")
+    if actual["text_size_pt"] < 8.9 or actual["line_height"] < 1.39:
+        raise RenderError("refined one-page typography may not be compressed below 8.9pt / 1.39 line height")
+    if 'font-variant-ligatures: none' not in main_css or '"liga" 0' not in main_css or '"clig" 0' not in main_css:
+        raise RenderError("main.css must disable standard and contextual ligatures")
+    return {"passed": True, "actual": actual}
+
+
+def css_number_or(css: str, variable: str, unit: str, default: float) -> float:
+    try:
+        return css_number(css, variable, unit)
+    except RenderError:
+        return default
+
+
+def text_width_mm(value: str, size_pt: float) -> float:
+    units = 0.0
+    for char in value:
+        if WIDE_CHAR_RE.match(char):
+            units += 1.0
+        elif char.isspace():
+            units += 0.3
+        else:
+            units += 0.52
+    return units * size_pt * MM_PER_PT
+
+
+def wrapped_lines(value: str, size_pt: float, width_mm: float) -> int:
+    return max(1, math.ceil(text_width_mm(value, size_pt) / width_mm - 1e-9))
+
+
+def estimate_fit(resume: dict[str, Any], theme_css: str, actual: dict[str, float]) -> dict[str, Any]:
+    """Heuristic one-page estimate; not a replacement for PDF page_count QA."""
+    text_pt = actual["text_size_pt"]
+    body_line_mm = text_pt * actual["line_height"] * MM_PER_PT
+    capacity_mm = 297.0 - actual["margin_top_mm"] - actual["margin_bottom_mm"]
+    content_width_mm = 210.0 - actual["margin_left_mm"] - actual["margin_right_mm"]
+    bullet_width_mm = content_width_mm - 3.8  # li padding-left
+    headline_pt = css_number_or(theme_css, "headline-size", "pt", 10.2)
+    blockquote_pt = css_number_or(theme_css, "blockquote-size", "pt", 8.25)
+    meta_pt = css_number_or(theme_css, "meta-size", "pt", 8.0)
+
+    header = resume["header"]
+    height_mm = actual["h1_size_pt"] * 1.3 * MM_PER_PT
+    height_mm += headline_pt * 1.4 * MM_PER_PT
+    contact_line = " ｜ ".join(header["contacts"])
+    height_mm += wrapped_lines(contact_line, blockquote_pt, content_width_mm) * blockquote_pt * 1.42 * MM_PER_PT
+    height_mm += wrapped_lines(header["summary"], blockquote_pt, content_width_mm - 4.0) * blockquote_pt * 1.42 * MM_PER_PT
+
+    trim_candidates: list[dict[str, Any]] = []
+    for section_index, section in enumerate(resume["sections"]):
+        height_mm += actual["h2_size_pt"] * 1.15 * MM_PER_PT + 1.6 + 0.8 + 0.6 + 0.4
+        for entry_index, entry in enumerate(section.get("entries", [])):
+            height_mm += actual["h3_size_pt"] * 1.42 * MM_PER_PT + (0.3 if entry_index else 0.0)
+            if entry.get("summary"):
+                height_mm += wrapped_lines(entry["summary"], meta_pt, bullet_width_mm) * meta_pt * 1.35 * MM_PER_PT + 0.35
+            for bullet_index, bullet in enumerate(entry["bullets"]):
+                lines = wrapped_lines(bullet["text"], text_pt, bullet_width_mm)
+                height_mm += lines * body_line_mm + 0.1
+                trim_candidates.append({
+                    "location": f"sections[{section_index}].entries[{entry_index}].bullets[{bullet_index}]",
+                    "estimated_lines": lines,
+                    "text": bullet["text"],
+                })
+        for bullet_index, bullet in enumerate(section.get("bullets", [])):
+            lines = wrapped_lines(bullet["text"], text_pt, bullet_width_mm)
+            height_mm += lines * body_line_mm + 0.1
+            trim_candidates.append({
+                "location": f"sections[{section_index}].bullets[{bullet_index}]",
+                "estimated_lines": lines,
+                "text": bullet["text"],
+            })
+
+    ratio = height_mm / capacity_mm
+    if ratio > 1.0:
+        status = "overflow"
+    elif ratio >= 1.0 - FIT_TOLERANCE:
+        status = "borderline"
+    elif ratio < 0.75:
+        status = "underfilled"
+    else:
+        status = "fits"
+
+    suggestions: list[str] = []
+    trim_candidates.sort(key=lambda item: item["estimated_lines"], reverse=True)
+    if status in {"overflow", "borderline"}:
+        suggestions.append(
+            "按内容抉择优先级从末尾开始删减或压缩条目，再用 `--fit-check` 复测；"
+            "不得在 8.9pt/1.39 下限之下压缩排版，也不得接受超过一页或裁切的 PDF。"
+        )
+    if status == "underfilled":
+        suggestions.append(
+            "页面明显未填满：从知识库未选用的事实池中补强高优先级条目，"
+            "或扩写 must_have 相关经历；不要为了填充而加入未经证实的内容。"
+        )
+    return {
+        "schema_version": "1.0",
+        "status": status,
+        "estimated_height_mm": round(height_mm, 1),
+        "capacity_mm": round(capacity_mm, 1),
+        "usage_ratio": round(ratio, 3),
+        "overflow_mm": round(max(0.0, height_mm - capacity_mm), 1),
+        "estimate_tolerance": FIT_TOLERANCE,
+        "trim_candidates": trim_candidates[:5],
+        "suggestions": suggestions,
+    }
+
+
 def render_sections_html(sections: list[dict[str, Any]]) -> str:
     chunks: list[str] = []
     for section in sections:
@@ -370,15 +538,17 @@ def font_family(path: Path) -> str:
 
 def expected_pdf_text(resume: dict[str, Any]) -> str:
     header = resume["header"]
-    lines = [header["display_name"], header["headline"], " · ".join(header["contacts"]), header["summary"]]
+    lines = [header["display_name"], header["headline"], " ｜ ".join(header["contacts"]), header["summary"]]
+    bullet_lines: list[str] = []
     for section in resume["sections"]:
         lines.append(section["title"])
         for entry in section.get("entries", []):
             lines.append(entry["title"] + (f" {entry['meta']}" if entry.get("meta") else ""))
             if entry.get("summary"):
                 lines.append(entry["summary"])
-            lines.extend(f"· {bullet['text']}" for bullet in entry["bullets"])
-        lines.extend(f"· {bullet['text']}" for bullet in section.get("bullets", []))
+            bullet_lines.extend(f"{bullet['text']}▸" for bullet in entry["bullets"])
+        bullet_lines.extend(f"{bullet['text']}▸" for bullet in section.get("bullets", []))
+    lines.extend(bullet_lines)
     return "\n".join(lines)
 
 
@@ -553,6 +723,7 @@ def main() -> int:
     parser.add_argument("--font-regular", help="Explicit approved CJK regular font file")
     parser.add_argument("--font-bold", help="Explicit approved CJK bold font file")
     parser.add_argument("--asset-dir", type=Path, default=Path(__file__).resolve().parents[1] / "assets" / "lapiscv")
+    parser.add_argument("--fit-check", action="store_true", help="Estimate one-page fit only; no fonts, browser or output files")
     parser.add_argument("--unicode-repair-only", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--pdf", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -563,6 +734,30 @@ def main() -> int:
                 raise RenderError("--unicode-repair-only requires --input and --pdf")
             report = repair_pdf_unicode(args.pdf, load_json(args.input))
             print(json.dumps(report, ensure_ascii=False))
+            return 0
+        if args.fit_check:
+            if args.input is None:
+                raise RenderError("--fit-check requires --input")
+            resume = load_json(args.input)
+            validate_resume(resume)
+            asset_dir = args.asset_dir.resolve()
+            main_css_path = asset_dir / "main.css"
+            theme_css_path = asset_dir / "professional-blue.css"
+            theme_json_path = asset_dir / "theme.json"
+            for path in (main_css_path, theme_css_path, theme_json_path):
+                if not path.is_file():
+                    raise RenderError(f"missing render asset: {path}")
+            theme_consistency = validate_theme_consistency(
+                main_css_path.read_text(encoding="utf-8"),
+                theme_css_path.read_text(encoding="utf-8"),
+                load_json(theme_json_path),
+            )
+            report = estimate_fit(resume, theme_css_path.read_text(encoding="utf-8"), theme_consistency["actual"])
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            if report["status"] == "overflow":
+                return 4
+            if report["status"] == "underfilled":
+                return 5
             return 0
         if args.input is None or args.profile is None or args.ats_map is None or args.output_dir is None:
             raise RenderError("normal rendering requires --input, --profile, --ats-map, and --output-dir")
@@ -576,7 +771,8 @@ def main() -> int:
         main_css_path = asset_dir / "main.css"
         theme_css_path = asset_dir / "professional-blue.css"
         theme_json_path = asset_dir / "theme.json"
-        for path in (template_path, main_css_path, theme_css_path, theme_json_path):
+        license_path = asset_dir / "LICENSE"
+        for path in (template_path, main_css_path, theme_css_path, theme_json_path, license_path):
             if not path.is_file():
                 raise RenderError(f"missing render asset: {path}")
 
@@ -584,6 +780,8 @@ def main() -> int:
         main_css = main_css_path.read_text(encoding="utf-8")
         theme_css = theme_css_path.read_text(encoding="utf-8")
         theme_json = load_json(theme_json_path)
+        theme_consistency = validate_theme_consistency(main_css, theme_css, theme_json)
+        fit_check = estimate_fit(resume, theme_css, theme_consistency["actual"])
         font_regular = find_font(args.font_regular, "GUIDED_RESUME_FONT_REGULAR", bold=False)
         font_bold = find_font(args.font_bold, "GUIDED_RESUME_FONT_BOLD", bold=True)
         regular_family = font_family(font_regular)
@@ -611,7 +809,7 @@ def main() -> int:
         markdown = template_text
         markdown = markdown.replace("{{display_name}}", header["display_name"])
         markdown = markdown.replace("{{headline}}", header["headline"])
-        markdown = markdown.replace("{{contact}}", " · ".join(header["contacts"]))
+        markdown = markdown.replace("{{contact}}", " ｜ ".join(header["contacts"]))
         markdown = markdown.replace("{{summary}}", header["summary"])
         markdown = markdown.replace("{{sections}}", md_sections)
 
@@ -628,7 +826,7 @@ def main() -> int:
 <body><main class=\"resume-page\">
 <header class=\"resume-header\"><h1>{html.escape(header['display_name'])}</h1>
 <div class=\"target-headline\">{html.escape(header['headline'])}</div>
-<div class=\"contact-line\">{'<span class="contact-item"> · </span>'.join(html.escape(c) for c in header['contacts'])}</div>
+<div class=\"contact-line\">{render_contact_html(header['contacts'])}</div>
 <div class=\"profile-summary\">{html.escape(header['summary'])}</div></header>
 {render_sections_html(resume['sections'])}
 </main></body></html>"""
@@ -655,13 +853,15 @@ def main() -> int:
                 "regular": {"path": str(font_regular), "sha256": font_regular_hash},
                 "bold": {"path": str(font_bold), "sha256": font_bold_hash}
             },
+            "theme_consistency": theme_consistency,
+            "fit_check": fit_check,
             "approval_template": approval_template,
         }
         (output_dir / "preview-manifest.json").write_text(
             json.dumps(preview_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
 
-        result: dict[str, Any] = {"mode": "preview", "output_dir": str(output_dir), "hashes": hashes}
+        result: dict[str, Any] = {"mode": "preview", "output_dir": str(output_dir), "hashes": hashes, "fit_check": fit_check}
         if not args.preview_only:
             if args.approval is None:
                 raise RenderError("formal PDF generation requires --approval after the user approves the preview")
@@ -684,6 +884,8 @@ def main() -> int:
                 },
                 "approval": str(args.approval.resolve()),
                 "unicode_repair": unicode_repair,
+                "theme_consistency": theme_consistency,
+                "fit_check": fit_check,
                 **hashes,
             }
             (output_dir / "build-report.json").write_text(

@@ -1,12 +1,14 @@
 # Guided Resume Studio
 
-一个面向 Codex 的可复用简历 Skill：通过多轮交互建立候选人事实库，调研单个目标岗位，完成 ATS 关键词映射与有证据的经历改写，在用户最终确认后生成可溯源的一页 PDF 简历。
+一个面向多种职业的可复用简历 Skill：通过多轮交互建立候选人事实库，按目标岗位选择合适的叙事策略，完成 ATS 关键词映射与有证据的经历增强，在用户最终确认后生成可溯源的一页 PDF 简历。它覆盖互联网、法律、财务、教育、医疗、公共服务、设计与其他岗位，不会因为缺少百分比指标就把真实经历写成空泛职责。
 
 视觉采用 **LapisCV 单页 A4 结构 + professional-blue 专业蓝主题**，并提供明确的内容批准、PDF 质量检查和重建机制。
 
 ## 核心能力
 
 - 每轮只询问 1–3 个相关问题，逐步建立候选人资料库。
+- 按 JD 职责信号选择岗位族叙事策略，避免所有岗位使用同一种简历句式。
+- 没有数字指标时，从范围、难点、判断、交付物、质量证据和反馈中增强经历表达。
 - 支持 Markdown、TXT、JSON、YAML、PDF、DOCX 和目录型知识库。
 - 区分 `user_verified`、`source_supported`、`unverified`、`conflicted` 和 `do_not_disclose`。
 - 一次处理一个岗位，优先分析用户提供的官方 JD。
@@ -111,4 +113,3 @@ guided-resume-studio/
 仓库主体采用 [MIT License](LICENSE)。
 
 `guided-resume-studio/assets/lapiscv/` 中的基础结构源自 [BingyanStudio/LapisCV](https://github.com/BingyanStudio/LapisCV)，保留其 MIT 版权与许可证声明。专业蓝主题、事实模型、ATS 映射、批准门禁、QA 和溯源脚本为本项目实现。
-
